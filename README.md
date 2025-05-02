@@ -16,13 +16,6 @@ This will create the package directory [substab](substab).  It will also create 
 ## To install the package
 
 The following command can be used to install the package:
-
-```r
-devtools::install("substab/")
-```
-
-Once this repo is made public, you will not need to clone the repo to install and can simply run the following:
-
 ```r
 remotes::install_github("jacobbien/substab-project", subdir = "substab")
 ```
