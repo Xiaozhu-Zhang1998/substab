@@ -1,0 +1,14 @@
+introduction
+package-setup
+generating
+cluster-structure
+complex-dependencies-block
+make-some-example-data
+subsampling
+fsss
+substitutes
+substitutability-metric
+identifying-interesting-substitutes
+extensions-to-a-collection-of-selection-sets
+radar-chart-of-substitutes
+conclusion

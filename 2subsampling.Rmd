@@ -1,0 +1,144 @@
+# Subsampling and stability {#subsampling}
+
+Just like in complementary pairs stability selection, we will be repeatedly applying a base procedure (here $\ell_0$-regularized regression) to random splits of the data.  The difference is that we will be keeping track of subspaces rather than feature indices.  In particular, in the paper we define
+
+$$
+\mathcal{P}_\mathrm{avg} := \frac{1}{B}\sum_{\ell=1}^B\mathcal{P}_{\mathrm{col}({X_{\widehat{S}^{(\ell)}}})},
+$$
+though here we average over $2B$ projection matrices because of the "complementary pairs" subsampling technique.
+
+```{r}
+#' l0 regression 
+#' 
+#' This function takes a subsample and returns a matrix 
+#' representing the column space of selected features
+#' 
+#' @param X the n/2 by p design matrix
+#' @param y the length n/2 response vector
+#' @param s0 an integer, tuning parameter for l0: the number of selected features
+#' @intercept logical. If FALSE, no intercept term is included in the model
+#' 
+#' @return a list:
+#' \describe{
+#'  \item{coef}{a vector of estimated coefficients}
+#'  \item{U}{n by k matrix, where k = rank(X_S) and S is the selection set. When no features are selected, return NULL}
+#' }
+l0_reg = function(X, y, ind, s0, intercept = FALSE) {
+  l0_model <- L0Learn::L0Learn.fit(x = X[ind,], y = y[ind], maxSuppSize = s0, intercept = FALSE)
+  v <- stats::coef(l0_model)
+  v = v[,ncol(v)]
+  sel_var <- which(abs(v) != 0)
+  if (length(sel_var) >0) {
+    U = svd(X[,sel_var])$u
+    return(list(
+      coef = v,
+      U = U
+    ))
+  } else {
+    return(NULL)
+  }
+}
+```
+
+```{r}
+#' Subsampling using l0 base procedures
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param s0 an integer, tuning parameter for l0: the number of selected features
+#' @param num_bags number of complementary subsample pairs B
+#' 
+#' @return a list:
+#' \describe{
+#' \item{Selset}{a \eqn{2*B} by p matrix, where each row gives the estimated coefficients of each subsample}
+#' \item{Pavg}{an n by n matrix, representing the Pavg matrix}
+#' \item{base_lst}{a list with length \eqn{2*B}, where each element gives the n by n projection matrix \eqn{P_{X_S^l}} from the l-th subsample}
+#' }
+#' @export
+l0_subsampling <- function(X, y, s0, num_bags = 100){
+  n = nrow(X)
+  p = ncol(X)
+  Pavg <- matrix(0, n, n)
+  Selset = matrix(0, 2*num_bags, p)
+  base_lst = list()
+  
+  count = 1
+  for (bag_iter in 1:num_bags){
+    
+    # complementary samples
+    ind <- sample(1:n, n, replace = FALSE)
+    ind_1 <- ind[1:(n/2)]
+    ind_2 <- ind[as.numeric(n/2+1):n]
+    
+    # l0 model on first dataset: updating frequency of variables and subspaces
+    l0_reg_obj = l0_reg(X = X, y = y, ind = ind_1, s0 = s0, intercept = FALSE)
+    if(!is.null(l0_reg_obj$U)) {
+      Selset[count,] = l0_reg_obj$coef
+      base_lst = c(base_lst, list(l0_reg_obj$U))
+      Pavg <- Pavg + l0_reg_obj$U %*% t(l0_reg_obj$U)
+    }
+    count = count + 1
+    
+    # l0 model on second dataset: updating frequency of variables and subspaces
+    l0_reg_obj = l0_reg(X = X, y = y, ind = ind_2, s0 = s0, intercept = FALSE)
+    if(!is.null(l0_reg_obj$U)) {
+      Selset[count,] = l0_reg_obj$coef
+      base_lst = c(base_lst, list(l0_reg_obj$U))
+      Pavg <- Pavg + l0_reg_obj$U %*% t(l0_reg_obj$U)
+    }
+    count = count + 1
+    
+  }
+  Pavg <- Pavg/(2*num_bags)
+  
+  return(list(Selset = Selset,
+              Pavg = Pavg,
+              base_lst = base_lst))
+}
+```
+
+In the above function, we used the R package `L0Learn`.  So let's import it into our package:
+
+```{r}
+usethis::use_package("L0Learn")
+```
+
+We can use the output of the above procedure to compute the "subspace stability" of a selected set of features $S$ (from Definition 2 of the paper):
+
+$$
+\pi(S):= \sigma_{|S|}(\mathcal{P}_{\mathrm{col}(X_S)}\mathcal{P}_\mathrm{avg}\mathcal{P}_{\mathrm{col}(X_S)}).
+$$
+
+```{r}
+#' The subspace stability of a column space
+#' 
+#' @param base_lst a list with length 2*B, where each element gives the n by n projection matrix \eqn{P_{X_S^l}} from the l-th subsample
+#' @param Z a matrix with linearly independent columns
+#' 
+#' @return the subspace stability value of the column space of Z
+find_stab <- function(base_lst, Z) {
+  Uc = svd(Z)$u
+  Mat = matrix(0, nrow = nrow(Z), ncol = nrow(Z))
+  for(i in seq_along(base_lst)) {
+    Ub = base_lst[[i]]
+    prod = t(Uc) %*% Ub
+    Mat = Mat + Uc %*% (prod %*% t(prod)) %*% t(Uc)
+  }
+  Mat = Mat / length(base_lst)
+  min( RSpectra::svds(Mat, ncol(Z), 0, 0)$d )
+}
+```
+
+
+In the above function, we used the R package `RSpectra`.  So let's import it into our package:
+
+```{r}
+usethis::use_package("RSpectra")
+```
+
+Let's continue our example now, and call `l0_subsampling()`
+
+```{r}
+ex$bags <- l0_subsampling(ex$X, ex$y, s0 = 5)
+```
+

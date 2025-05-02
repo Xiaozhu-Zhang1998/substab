@@ -1,0 +1,492 @@
+# Substitutes {#substitutes}
+
+The subspace perspective includes the notion that two different sets of variables can equally well play a certain role within the context of a model.  We call such sets "substitutes." We would like to use this to understand better the roles that different sets of variables play.
+
+## Substitutability metric
+
+In the paper, we define the following measure of "substitutability."  
+
+**Definition:** (*Substitutability metric*) Let $\bar{S},\tilde{S},S \subseteq \{1,2,\dots,p\}$ with $S \cap \bar{S} = S \cap \tilde{S} = \varnothing$. For vectors $a,b \in \mathbb{R}^n$, we denote their correlation as $\mathrm{Corr}(a,b) := |a^\top{b}|/[\|a\|_2\|b\|_2]$. The degree of substitutability of $\bar{S}$ and $\tilde{S}$ with respect to set $S$ is
+$$
+\tau (\bar{S},\tilde{S};S) := \frac{\min\{\|\mathcal{P}_{\bar{T}}(y)\|_2,\|\mathcal{P}_{\tilde{T}}(y)\|_2\}}{\max\{\|\mathcal{P}_{\bar{T}}(y)\|_2,\|\mathcal{P}_{\tilde{T}}(y)\|_2\}} \cdot |\mathrm{Corr}(\mathcal{P}_{\bar{T}}(y),\mathcal{P}_{\tilde{T}}(y))|
+$$
+
+where $0/0 = 0$. Larger values indicate a larger degree of substitutability. In the above definition, $\bar{T} = \mathrm{col}(X_S)^\perp \cap \mathrm{col}(X_{\bar{S}})$, and $\tilde{T} = \mathrm{col}(X_S)^\perp \cap \mathrm{col}(X_{\tilde{S}})$.
+
+
+```{r}
+#' Substitutability metric of S1 and S2 w.r.t S0
+#' 
+#' Definition 3
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param S1 a vector representing subset S1
+#' @param S2 a vector representing subset S2
+#' @param S0 a vector representing subset S0
+#' 
+#' @return the substitutability (tau) metric
+#' 
+#' @export
+tau <- function(X, y, S1, S2, S0) {
+  U = svd(X[, S0])$u
+  U1 = svd(X[, union(S0, S1)])$u
+  U2 = svd(X[, union(S0, S2)])$u
+  u1 = U1 %*% (t(U1) %*% y) - U %*% (t(U) %*% y)
+  u2 = U2 %*% (t(U2) %*% y) - U %*% (t(U) %*% y)
+  u.vec = list(u1, u2)
+  if(norm(u1, "2") < norm(u2, "2")) {
+    u1 = u.vec[[2]]
+    u2 = u.vec[[1]]
+  }
+  if( abs(norm(u1, "2")) < 1e-7 ) return(0)
+  return(as.numeric(t(u1) %*% u2 / norm(u1, "2")^2 ) )
+}
+```
+
+## Identifying interesting substitutes
+
+As discussed in the paper, we would like to restrict attention to interesting pairs of substitutes.
+
+One not interesting case is what we call \textit{feature perturbation structure}, meaning that each feature in $\bar{S}$ has a highly correlated ``twin feature" in $\tilde{S}$ (or vice versa). Definition 4 in the paper is as follows:
+
+**Definition:** (*Feature perturbation metric*) Let $\bar{S}, \tilde{S}, S \subseteq \{1,2, \dots, p\}$ with $S \cap \bar{S} = S \cap \tilde{S} = \varnothing$. Initialize $(i_0, j_0) \gets (\varnothing, \varnothing)$, and iterate $(i_0, j_0) \in \arg\max_{i \in \bar{S},\ j\in \tilde{S}}\tau (\{i\}, \{j\}; S)$, $\bar{S} \gets \bar{S} \setminus \{i_0\}$ and $\tilde{S} \gets \tilde{S} \setminus \{j_0\}$, until $\bar{S} = \varnothing$ or $\tilde{S} = \varnothing$. Then, we define the feature perturbation metric as:
+
+$$
+\nabla\tau (\bar{S}, \tilde{S}; S) := 
+\frac{ |\tau (\{i_0\}, \{j_0\}; S) - \tau (\bar{S}, \tilde{S} ;S) | }{\max\{\tau (\{i_0\}, \{j_0\}; S),\ \tau (\bar{S}, \tilde{S};S) \}},
+$$
+where $0/0 = 0$. When $|\bar{S}| = |\tilde{S}| = 1$, let $\nabla\tau (\bar{S}, \tilde{S}; S) = 1$.
+
+```{r}
+#' Feature perturbation metric of S1 and S2 w.r.t S0
+#' 
+#' Definition 4
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param S1 a vector representing subset S1
+#' @param S2 a vector representing subset S2
+#' @param S0 a vector representing subset S0
+#' 
+#' @return the feature perturbation (nabla tau) metric
+#' 
+#' @export
+nabla_tau <- function(X, y, S1, S2, S0) {
+  if(length(S1) == 1 & length(S2) == 1) return(1)
+  tau.mat = matrix(0, nrow = length(S1), ncol = length(S2))
+  for(i in 1:nrow(tau.mat)) {
+    for(j in 1:ncol(tau.mat)) {
+      tau.mat[i,j] = tau(X, y, S1[i], S2[j], S0)
+    }
+  }
+  tau.val = c()
+  for(i in 1:min(length(S1), length(S2))) {
+    tau.val = c(tau.val, max(tau.mat))
+    idx = which(tau.mat == max(tau.mat), arr.ind = TRUE)[1,]
+    tau.mat = tau.mat[-idx[1], ,drop = FALSE]
+    tau.mat = tau.mat[,-idx[2], drop = FALSE]
+  }
+  tau_overall = tau(X, y, S1, S2, S0)
+  if( abs(max(min(tau.val), tau_overall)) < 1e-7 ) return(0)
+  return( abs(min(tau.val) - tau_overall) / max(min(tau.val), tau_overall) )
+}
+```
+
+Another not interesting case is high degeneracy, where we define degeneracy through the following measure:
+
+**Definition:** (*Degeneracy metric*) Let $\bar{S}, \tilde{S}, S \subseteq \{1,2, \dots, p\}$ with $S \cap \bar{S} = S \cap \tilde{S} = \varnothing$. Define $P(\bar{S})$ as the powerset of $\bar{S}$ excluding $\varnothing$ and $\bar{S}$ itself. Similarly, define $P(\tilde{S})$ as the power set of $\tilde{S}$ excluding $\varnothing$ and $\tilde{S}$. The degeneracy metric is
+$$
+\triangle \tau (\bar{S}, \tilde{S}; S) :=   \max\left\{\max_{\bar{s} \in P(\bar{S})} \tau (\bar{s}, \bar{S}; S), \max_{\tilde{s} \in P(\tilde{S})}\tau (\tilde{s}, \tilde{S}; S)\right\}. 
+$$
+When $|\bar{S}| = |\tilde{S}| = 1$, we let $\triangle \tau (\bar{S}, \tilde{S}; S) = 0$.
+
+```{r}
+#' Degeneracy metric of S1 and S2 w.r.t S0
+#' 
+#' Definition 5
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param S1 a vector representing subset S1
+#' @param S2 a vector representing subset S2
+#' @param S0 a vector representing subset S0
+#' 
+#' @return the degeneracy (tri tau) metric
+#' 
+#' @export
+tri_tau <- function(X, y, S1, S2, S0) {
+  if(length(S1) == 1 & length(S2) == 1) return(0)
+  PS1 = rje::powerSet(S1)
+  PS2 = rje::powerSet(S2)
+  Tau.pair1 = c()
+  Name.pair1 = list()
+  for(j in PS1[2:(length(PS1)-1)]) {
+    rs = tau(X, y, j, S1, S0)
+    Tau.pair1 = c(Tau.pair1, rs)
+  }
+  Tau.pair2 = c()
+  Name.pair2 = list()
+  for(j in PS2[2:(length(PS2)-1)]) {
+    rs = tau(X, y, j, S2, S0)
+    Tau.pair2 = c(Tau.pair2, rs)
+  }
+  return(max(Tau.pair1, Tau.pair2))
+}
+```
+
+We used the `rje` package in the above function.
+
+```{r}
+usethis::use_package("rje")
+```
+
+## Extensions to a collection of selection sets
+
+FSSS in its `"any-path"` mode generates multiple selected subspaces. This leads to the question of how to assess the concept of substitutes when there are a collection of selection sets $\mathfrak{S}$. In order to evaluate substitutability of $\bar{S}$ and $\tilde{S}$ within each FSSS selection sets, we denote the anchor sets of $(\bar{S}, \tilde{S})$ as follows: 
+$$
+\mathscr{S}(\bar{S}, \tilde{S}) := \{ S\setminus \{\bar{S} \cup \tilde{S}\}: S\in\mathfrak{S},\ \bar{S} \subseteq S \text{ or } \tilde{S} \subseteq S \}.
+$$
+Each anchor set represents the unchanged components of a FSSS selection set when $\bar{S}$ is substituted with $\tilde{S}$ or vice versa. We then define the three $\tau$-related quantities in this context:
+
+The following function computes the substitutability of $\bar{S}$ and $\tilde{S}$ w.r.t. a collection of selection sets $\mathfrak{S}$:
+
+$$
+\tau ( \bar{S}, \tilde{S}; \mathfrak{S} ) := \min_{S \in \mathscr{S}} \tau (\bar{S}, \tilde{S}; S)
+$$
+
+
+```{r}
+#' Substitutability metric of S1 and S2 w.r.t a collection of selection sets
+#' 
+#' line (iii) in Algorithm 2
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param S1 a vector representing subset S1
+#' @param S2 a vector representing subset S2
+#' @param Selection_set a list where each element gives a selection set
+#' 
+#' @return the minimum tau metric of S1 and S2 wrt to all selection sets
+#' 
+#' @export
+tau_wrt_S <- function(X, y, S1, S2, Selection_set) {
+  Tau = c()
+  for(i in seq_along(Selection_set)) {
+    S0 = Selection_set[[i]]
+    if(all(S1 %in% S0) | all(S2 %in% S0) ) {
+      S0 = setdiff(Selection_set[[i]], union(S1, S2))
+      Tau = c(Tau, tau(X, y, S1, S2, S0))
+    }
+  }
+  if(length(Tau) == 0) stop("Neither S1 nor S2 is in any selection set!")
+  return(min(Tau))
+}
+```
+
+The following function computes the feature perturbation metric of substitutes $\bar{S}$ and $\tilde{S}$ w.r.t. a collection of selection sets $\mathfrak{S}$:
+
+$$
+\nabla \tau ( \bar{S}, \tilde{S}; \mathfrak{S} ) := \min_{S \in \mathscr{S}} \nabla \tau (\bar{S}, \tilde{S}; S)
+$$
+
+```{r}
+#' Feature perturbation metric of S1 and S2 w.r.t a collection of selection sets
+#' 
+#' line (iv) in Algorithm 2
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param S1 a vector representing subset S1
+#' @param S2 a vector representing subset S2
+#' @param Selection_set a list where each element gives a selection set
+#' 
+#' @return the minimum nabla tau metric of S1 and S2 wrt to all selection sets
+#' 
+#' @export
+nabla_tau_wrt_S <- function(X, y, S1, S2, Selection_set) {
+  Nabla_Tau = c()
+  for(i in seq_along(Selection_set)) {
+    S0 = Selection_set[[i]]
+    if(all(S1 %in% S0) | all(S2 %in% S0) ) {
+      S0 = setdiff(Selection_set[[i]], union(S1, S2))
+      Nabla_Tau = c(Nabla_Tau, nabla_tau(X, y, S1, S2, S0))
+    }
+  }
+  if(length(Nabla_Tau) == 0) stop("Neither S1 nor S2 is in any selection set!")
+  return(min(Nabla_Tau))
+}
+```
+
+The following function computes the degeneracy metric of substitutes $\bar{S}$ and $\tilde{S}$ w.r.t. a collection of selection sets $\mathfrak{S}$:
+
+$$
+\triangle \tau ( \bar{S}, \tilde{S}; \mathfrak{S} ) := \min_{S \in \mathscr{S}} \triangle \tau (\bar{S}, \tilde{S}; S)
+$$
+
+```{r}
+#' Degeneracy metric of S1 and S2 w.r.t a collection of selection sets
+#' 
+#' line (v) in Algorithm 2
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param S1 a vector representing subset S1
+#' @param S2 a vector representing subset S2
+#' @param Selection_set a list where each element gives a selection set
+#' 
+#' @return the minimum tri tau metric of S1 and S2 wrt to all selection sets
+#' 
+#' @export
+tri_tau_wrt_S <- function(X, y, S1, S2, Selection_set) {
+  Tri_Tau = c()
+  for(i in seq_along(Selection_set)) {
+    S0 = Selection_set[[i]]
+    if(all(S1 %in% S0) | all(S2 %in% S0) ) {
+      S0 = setdiff(Selection_set[[i]], union(S1, S2))
+      Tri_Tau = c(Tri_Tau, tri_tau(X, y, S1, S2, S0))
+    }
+  }
+  if(length(Tri_Tau) == 0) stop("Neither S1 nor S2 is in any selection set!")
+  max(Tri_Tau)
+}
+```
+
+We make use of these three functions in Algorithm 2 of the main paper:
+
+- **Input:** FSSS selection sets $\mathfrak{S}$, the subset size $k \in \mathbb{N}$, stability threshold $\alpha\in (1/2,1)$, substitute threshold $\tau_0 \in (1/2, 1)$, feature perturbation threshold $\tau_1 \in (1/2,1)$, and degeneracy threshold $\tau_2 \in (0, 1/2)$.
+- **Searching:** For each pair of distinct selection sets $(S_1, S_2)$ in $\mathfrak{S}$ and every subsets $\tilde{S}_1 \subset S_1$  and $\tilde{S}_2 \subset S_2$ of size at most $k$: 
+ $\mathfrak{A}_1 \gets \{S \subseteq S_1: 0< |S| \leq k\}$ and $\mathfrak{A}_2 \gets \{S \subseteq S_2: 0< |S| \leq k\}$; 
+   - Discard if $\tilde{S}_1$ and $\tilde{S}_2$ are stable together;%: If $\pi( \tilde{S}_1 \cup \tilde{S}_2 ) \geq \alpha$, repeat (b) for another pair of $( \tilde{S}_1, \tilde{S}_2 )$;
+
+   - Find all subsets of features of selection sets $\mathfrak{S}$ that do not have any features in $\tilde{S}_1$ or $\tilde{S}_2$. Denote this set by $\mathscr{S}(\tilde{S}_1, \tilde{S}_2)$;
+$\mathscr{S}(\tilde{S}_1, \tilde{S}_2) \gets \{ S\setminus \{\tilde{S}_1 \cup \tilde{S}_2\}: S\in\mathfrak{S},\ \tilde{S}_1 \subseteq S \text{ or } \tilde{S}_2 \subseteq S \}$;
+   - Compute substitutability metric: $\tau (\tilde{S}_1, \tilde{S}_2 ; \mathfrak{S}) \gets \min_{S\in\mathscr{S}}\tau (\tilde{S}_1, \tilde{S}_2 ; S)$; 
+
+   - Compute feature perturbation metric: $\nabla\tau (\tilde{S}_1, \tilde{S}_2 ; \mathfrak{S}) \gets \min_{S\in\mathscr{S}} \nabla\tau (\tilde{S}_1, \tilde{S}_2 ; S)$; 
+
+    - Compute degeneracy metric: $\triangle\tau (\tilde{S}_1, \tilde{S}_2 ; \mathfrak{S}) \gets \max_{S\in\mathscr{S}} \triangle\tau (\tilde{S}_1, \tilde{S}_2 ; S)$; 
+            
+    - Record if the substitutability, perturbation, and degeneracy metrics exceed their thresholds.
+            
+- **Output:** A collection of substitutes and their substitutability metrics \\ $\left\{( \tilde{S}_1, \tilde{S}_2 );\ \tau ( \tilde{S}_1, \tilde{S}_2 ; \mathfrak{S} );\ \nabla \tau ( \tilde{S}_1, \tilde{S}_2 ; \mathfrak{S} );\ \triangle\tau ( \tilde{S}_1, \tilde{S}_2 ; \mathfrak{S} ) \right\}$.
+
+
+```{r}
+#' Substitute searching algorithm
+#' 
+#' Algorithm 2. The function only searches for subsets with size (k) at most 2.
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param Selection_set a list where each element gives a selection set
+#' @param bags a list returned from l0_subsampling
+#' @param alpha a number, the threshold for stability
+#' @param tau0 a number, the threshold for substitutability (tau) metric
+#' @param tau1 a number, the threshold for feature perturbation (nabla tau) metric
+#' @param tau2 a number, threshold for degeneracy (tri tau) metric
+#' @param maxreturn an integer, the maximum number of requested substitutes
+#' @param verbose 0 or 1, logical value for outputting the searching progress
+#' 
+#' @return a data frame for all substitutes found
+#' \describe{
+#'  \item{S1}{name of subsets S1}
+#'  \item{S2}{name of subsets S2}
+#'  \item{tau}{the tau metric of S1 and S2 w.r.t. the selection sets}
+#'  \item{nabla_tau}{the nabla_tau metric of S1 and S2 w.r.t. the selection sets}
+#'  \item{tri_tau}{the tri tau metric of S1 and S2 w.r.t. the selection sets}
+#' }
+#' 
+#' @export
+subs_search_k2 <- function(X, y, Selection_set, bags, alpha, tau0 = 0.8, tau1 = 0.5, tau2 = 0.8, maxreturn = 10, verbose = 1) {
+  RS = data.frame(matrix(0, nrow = 0, ncol = 5))
+  colnames(RS) = c("S1", "S2", "tau", "nabla_tau", "tri_tau")
+  count = 1
+  # find all combinations of S1, S2 in selection sets
+  combidx_set = combinat::combn(1:length(Selection_set), 2)
+  for(i in 1:ncol(combidx_set)) {
+    if(verbose == 1) cat("start the", i, "th combination of (S1, S2) out of", ncol(combidx_set), "\n")
+    zoom_set = combidx_set[,i]
+    set1 = Selection_set[[zoom_set[1]]]
+    set2 = Selection_set[[zoom_set[2]]]
+    # find all subsets of S1 and S2
+    combidx_feat1 = combinat::combn(set1, 2); combidx_feat1 = cbind(combidx_feat1, rep(1, 2) %*% t(set1))
+    combidx_feat2 = combinat::combn(set2, 2); combidx_feat2 = cbind(combidx_feat2, rep(1, 2) %*% t(set2))
+    for(j in 1:ncol(combidx_feat1)) {
+      if(verbose == 1) cat("\t start the", j, "th subset of S1 out of", ncol(combidx_feat1), "\n")
+      for(l in 1:ncol(combidx_feat2)) {
+        S1 = sort(unique(combidx_feat1[,j]))
+        S2 = sort(unique(combidx_feat2[,l]))
+        name1 = paste0(S1, collapse = ",")
+        name2 = paste0(S2, collapse = ",")
+        # check if S1 and S2 are the same, or if they have been selected
+        if(all(S1 == S2)) next
+        if((name1 %in% RS$S1 & name2 %in% RS$S2) | (name2 %in% RS$S1 & name1 %in% RS$S2)) next
+        # check if S1 and S2 are stable together
+        joint_supp = stability(X, union(S1, S2), bags)
+        if(joint_supp >= alpha) next
+        # check if tau < tau0 
+        tau_obj = tau_wrt_S(X, y, S1, S2, Selection_set) 
+        if(tau_obj < tau0) next
+        # check if nabla_tau < tau1
+        nabla_tau_obj = nabla_tau_wrt_S(X, y, S1, S2, Selection_set)
+        if(nabla_tau_obj < tau1) next
+        # check if tri_tau > tau2
+        tri_tau_obj = tri_tau_wrt_S(X, y, S1, S2, Selection_set)
+        if(tri_tau_obj > tau2) next
+        # record
+        RS[count,'S1'] = name1
+        RS[count,'S2'] = name2
+        RS[count,'tau'] = tau_obj
+        RS[count,'nabla_tau'] = nabla_tau_obj
+        RS[count,'tri_tau'] = tri_tau_obj
+        count = count + 1
+        if(nrow(RS) >= maxreturn) return(RS)
+      }
+    }
+  }
+  return(RS)
+}
+```
+
+We used the `combinat` package in the above function.
+
+```{r}
+usethis::use_package("combinat")
+```
+
+
+This function also depended on a function called `stability()`:
+
+```{r}
+#' The subspace stability of a selection set
+#' 
+#' Definition 2
+#' 
+#' @param X the n by p design matrix
+#' @param S a vector representing selection set
+#' @param bags a list returned from l0_subsampling
+#' 
+#' @return the subspace stability value of S
+#' 
+#' @export
+stability <- function(X, S, bags) {
+  base_lst = bags$base_lst
+  if(nrow(bags$Pavg) != nrow(X) ) stop("The Pavg has different dimension with X!")
+  find_stab(base_lst, X[,S, drop = FALSE])
+}
+```
+
+## Radar chart of substitutes
+
+In the paper, we use radar charts as a way of visualizing the degeneracy metric to assess whether the substitutability of any pair of sets is primarily driven mostly by substitutability among their subsets.  To this end, we define a function `tri_tau_wrt_S_radar()`.  Despite the similar name to `tri_tau_wrt_S()`, it is distinct in functionality, as explained through an example: Let's say that we are considering substitutes $S_1=\{1,2\}$ and $S_2 = \{3,4\}$. Then on the radar chart, the corner $[S_1, \{1\}]$ does not measure $\tau (S_1, \{1\}; \mathfrak{S}):= \min_{S\in \mathscr{S}(S_1, \{1\})} \tau (S_1, \{1\}; S)$. Instead, it measures $\min_{S\in \mathscr{S}(S_1, S_2)} \tau (S_1, \{1\}; S)$. The key difference between these two metrics lies in the anchor sets $\mathscr{S}$ over which the minimum is taken. The relevant anchor set we should look at is $\mathscr{S}(S_1, S_2)$ even if we are measuring the substitutability between $S_1$ and its subset; as only with this anchor set, the max of all corners equals $\triangle\tau (S_1, S_2; \mathfrak{S})$. In other words, each corner works as an intermediate step in computing $\triangle\tau (S_1, S_2; \mathfrak{S})$.
+
+```{r}
+#' Degeneracy metric of S (in the substitutes (S, S_)) and its subset w.r.t a collection of selection sets
+#' 
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param j a vector representing a subset of S
+#' @param S a vector representing set S
+#' @param S_ a vector representing set S_
+#' @param Selection_set a list where each element gives a selection set
+#' 
+#' @return the degeneracy metric of j and S w.r.t the selection sets
+tri_tau_wrt_S_radar <- function(X, y, j, S, S_, Selection_set) {
+  Tri_Tau = c()
+  for(i in seq_along(Selection_set)) {
+    S0 = Selection_set[[i]]
+    if(all(S %in% S0) | all(S_ %in% S0) ) {
+      S0 = setdiff(Selection_set[[i]], union(S, S_))
+      Tri_Tau = c(Tri_Tau, tau(X, y, j, S, S0))
+    }
+  }
+  return(max(Tri_Tau))
+}
+```
+
+The following function creates these radar plots:
+
+```{r}
+#' Radar chart of substitute (S1, S2)
+#' 
+#' Both S1 and S2 need to have size at most 2. 
+#' The radar chat shows the most degenerate `topk` subsets of S1 and S2 respectively
+#' 
+#' @param S1 a vector representing set S1
+#' @param S2 a vector representing set S2
+#' @param X the n by p design matrix
+#' @param y the length n response vector
+#' @param Selection_set a list where each element gives a selection set
+#' @param topk an integer specifying the maximal number of subsets shown on the plot
+#' 
+#' @export
+search_radarchart <- function(S1, S2, X, y, Selection_set, topk = 2) {
+  Tau = matrix(0, nrow = 3, ncol = 5)
+  Tau[1,] = matrix(1, 1, 5) 
+  Tau[2,] = matrix(0, 1, 5)
+  if(min(length(S1), length(S2)) == 1 ) stop("Both S1 and S2 are of length 1")
+  PS1 = rje::powerSet(S1)
+  PS2 = rje::powerSet(S2)
+  Tau.pair1 = c()
+  Name.pair1 = list()
+  for(j in PS1[2:(length(PS1)-1)]) {
+    rs = tri_tau_wrt_S_radar(X, y, j, S1, S2, Selection_set)
+    Tau.pair1 = c(Tau.pair1, rs)
+    Name.pair1 = c(Name.pair1, list(j))
+  }
+  Tau.pair2 = c()
+  Name.pair2 = list()
+  for(j in PS2[2:(length(PS2)-1)]) {
+    rs = tri_tau_wrt_S_radar(X, y, j, S2, S1, Selection_set)
+    Tau.pair2 = c(Tau.pair2, rs)
+    Name.pair2 = c(Name.pair2, list(j))
+  }
+  if (requireNamespace("tensr", quietly = TRUE)) {
+    # the function tensr:::topK is unexported, so we use getFromNamespace
+    # however, doing so makes devtools::check() complain about tensr being
+    # imported but not used.  We therefore add tensr to "Suggests" instead of
+    # Imports.  For that reason we have to check that tensr is actually installed.
+    topK <- utils::getFromNamespace("topK", "tensr")
+    idx1 = topK(Tau.pair1, min(topk, length(Tau.pair1)))
+    idx2 = topK(Tau.pair2, min(topk, length(Tau.pair2)))
+  } else {
+    stop("Package 'tensr' is required but not installed.")
+  }
+  Tau[3,] = c(Tau.pair1[idx1], Tau.pair2[idx2], max(Tau.pair1, Tau.pair2))
+  Tau = data.frame(Tau)
+  name1 = paste0(S1, collapse = ",")
+  name2 = paste0(S1, collapse = ",")
+  rownames(Tau) = c("1", "2", paste0("S1={", name1, ", S2=", name2, "}" ))
+  colnames(Tau) = c(
+    sapply(1:length(idx1), function(k) {
+      paste0("[{", paste0(Name.pair1[idx1][[k]], collapse = ","), "}, S1]") 
+    }),
+    sapply(1:length(idx2), function(k) {
+      paste0("[{", paste0(Name.pair2[idx2][[k]], collapse = ","), "}, S2]") 
+    }),
+    "Triangle"
+  )
+  fmsb::radarchart(
+    Tau,
+    pfcol = c("#99999980",NA),
+    pcol= c(NA,2), plty = 1, plwd = 2,
+    # title = row.names(Tau)[3],
+    axislabcol = "blue", 
+    caxislabels = c(0.2, 0.4, 0.6, 0.8, 1),
+    vlabels = colnames(Tau),
+    vlcex = 1, calcex = 0.9,
+    axistype = 1,
+  )
+  text = paste0("S1 = {", paste0(S1, collapse = ","), "}, S2 = {", paste0(S2, collapse = ","), "}")
+  graphics::mtext(text, side=1)
+}
+```
+
+We used functionality from the R packages `fmsb` and `tensr` in the above function.
+
+```{r}
+usethis::use_package("fmsb")
+usethis::use_package("tensr", type = "Suggests")
+```
+

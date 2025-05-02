@@ -1,0 +1,28 @@
+Package: substab
+Title: A Package for Stable Feature Subspace Selection
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Xiaozhu", "Zhang", , "xzzhang@uw.edu", role = c("aut", "cre")),
+    person("Jacob", "Bien", role = "ctb"),
+    person("Armeen", "Taeb", role = "ctb")
+  )
+Description: This package implements the proposals in the paper,
+    'Quantifying Uncertainty and Stability Among Highly Correlated
+    Predictors: A Subspace Perspective.'
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports: 
+    combinat,
+    fmsb,
+    L0Learn,
+    rje,
+    RSpectra,
+    stats
+Suggests: 
+    tensr,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+LitrVersionUsed: 0.9.2
+LitrId: addb729fb008c0c89750e5b410fa50d8

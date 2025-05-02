@@ -1,0 +1,81 @@
+---
+title: "Creating the ``r params$package_name`` R package"
+author: ""
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+knit: litr::render
+output: litr::litr_gitbook
+params:
+  package_name: "substab"
+  package_parent_dir: "." # <-- relative to this file's location
+documentclass: book
+---
+
+# Introduction
+
+This book uses literate programming^[Using the [litr](https://jacobbien.github.io/litr-project/) R package] to implement the R package associated with the paper "Quantifying Uncertainty and Stability Among Highly Correlated Predictors: A Subspace Perspective."
+
+**Note:** The following line of code when run in R from the directory containing this and the other .Rmd files will create (a) a bookdown (a "book" that can be viewed in a web broswer) and (b) the `substab` R package.
+
+```{r, eval = FALSE}
+litr::render("index.Rmd", output_format = litr::litr_gitbook())
+```
+
+Once the rendering process completes, open `_book/index.html` in a web browser to see the result and you can run the following to install the R package.
+
+```{r, eval = FALSE}
+devtools::install("substab/")
+```
+
+
+The basic outline of this document is as follows:
+
+- [Generating design matrices of relevance](#generating)
+
+- [Subsampling with the $\ell_0$ base procedure]({#subsampling})
+
+- [The FSSS procedure](#fsss) (Algorithm 1 of paper)
+
+- [Identifying interesting substitutes](#substitutes) (Algorithm 2 of paper)
+
+Before proceeding, we define some important package metadata.
+
+## Package setup
+
+Every R package needs a DESCRIPTION file, so we start by specifying this information:
+
+```{r package-setup, message=FALSE, results='hide'}
+usethis::create_package(
+  path = ".",
+  fields = list(
+    Package = params$package_name,
+    Version = "0.0.0.9000",
+    Title = "A Package for Stable Feature Subspace Selection",
+    Description = "This package implements the proposals in the paper, 'Quantifying Uncertainty and Stability Among Highly Correlated Predictors: A Subspace Perspective.'",
+    `Authors@R` = c(
+      person(given = "Xiaozhu",
+             family = "Zhang",
+             email = "xzzhang@uw.edu",
+             role = c("aut", "cre")),
+      person(given = "Jacob", family = "Bien", role = "ctb"),
+      person(given = "Armeen", family = "Taeb", role = "ctb")
+      )
+  )
+)
+usethis::use_mit_license(copyright_holder = "X. Zhang")
+```
+
+We start by creating some package-level documentation.  This is what will show up when someone types `package?substab` in the console.
+
+```{package_doc}
+#' A Package for Stable Feature Subspace Selection
+#'
+#' This package implements the proposals in the paper, 'Quantifying Uncertainty
+#' and Stability Among Highly Correlated Predictors: A Subspace Perspective.' It 
+#' is focused on feature selection in the setting where features are highly
+#' correlated.  It addresses the challenge of feature selection by shifting the 
+#' perspective from selecting certain features to selecting a certain subspace
+#' of R^n.
+#' 
+#' @docType package
+```
