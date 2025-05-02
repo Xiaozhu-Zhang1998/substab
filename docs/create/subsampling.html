@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>3 Subsampling and stability | Creating the substab R package</title>
+<meta name="description" content="3 Subsampling and stability | Creating the substab R package">
+<meta name="generator" content="bookdown 0.43 and GitBook 2.6.7">
+<meta property="og:title" content="3 Subsampling and stability | Creating the substab R package">
+<meta property="og:type" content="book">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="3 Subsampling and stability | Creating the substab R package">
+<meta name="author" content="">
+<meta name="date" content="2025-05-01">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="prev" href="generating.html">
+<link rel="next" href="fsss.html">
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script><script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script><link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet">
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet">
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet">
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet">
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet">
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet">
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet">
+<link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet">
+<link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet">
+<script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script><style type="text/css">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+<style type="text/css">
+  
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+</style>
+<style type="text/css">fieldset.chunkfield {border:1px dotted black;padding-bottom: 0px;padding-top: 0px;margin:0 2px;padding:.35em .625em .75em}
+                   legend.chunklegend {padding:0;width:auto;border:0; border-bottom: none; margin-bottom:0}</style>
+</head>
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation"><ul class="summary">
+<li class="chapter" data-level="1" data-path="index.html">
+<a href="index.html"><i class="fa fa-check"></i><b>1</b> Introduction</a>
+<ul>
+<li class="chapter" data-level="1.1" data-path="index.html"><a href="index.html#package-setup"><i class="fa fa-check"></i><b>1.1</b> Package setup</a></li>
+</ul>
+</li>
+<li class="chapter" data-level="2" data-path="generating.html">
+<a href="generating.html"><i class="fa fa-check"></i><b>2</b> Generating data</a>
+<ul>
+<li class="chapter" data-level="2.1" data-path="generating.html"><a href="generating.html#cluster-structure"><i class="fa fa-check"></i><b>2.1</b> Cluster structure</a></li>
+<li class="chapter" data-level="2.2" data-path="generating.html"><a href="generating.html#complex-dependencies-block"><i class="fa fa-check"></i><b>2.2</b> Complex Dependencies Block</a></li>
+<li class="chapter" data-level="2.3" data-path="generating.html"><a href="generating.html#make-some-example-data"><i class="fa fa-check"></i><b>2.3</b> Make some example data</a></li>
+</ul>
+</li>
+<li class="chapter" data-level="3" data-path="subsampling.html"><a href="subsampling.html"><i class="fa fa-check"></i><b>3</b> Subsampling and stability</a></li>
+<li class="chapter" data-level="4" data-path="fsss.html"><a href="fsss.html"><i class="fa fa-check"></i><b>4</b> FSSS</a></li>
+<li class="chapter" data-level="5" data-path="substitutes.html">
+<a href="substitutes.html"><i class="fa fa-check"></i><b>5</b> Substitutes</a>
+<ul>
+<li class="chapter" data-level="5.1" data-path="substitutes.html"><a href="substitutes.html#substitutability-metric"><i class="fa fa-check"></i><b>5.1</b> Substitutability metric</a></li>
+<li class="chapter" data-level="5.2" data-path="substitutes.html"><a href="substitutes.html#identifying-interesting-substitutes"><i class="fa fa-check"></i><b>5.2</b> Identifying interesting substitutes</a></li>
+<li class="chapter" data-level="5.3" data-path="substitutes.html"><a href="substitutes.html#extensions-to-a-collection-of-selection-sets"><i class="fa fa-check"></i><b>5.3</b> Extensions to a collection of selection sets</a></li>
+<li class="chapter" data-level="5.4" data-path="substitutes.html"><a href="substitutes.html#radar-chart-of-substitutes"><i class="fa fa-check"></i><b>5.4</b> Radar chart of substitutes</a></li>
+</ul>
+</li>
+<li class="chapter" data-level="6" data-path="conclusion.html"><a href="conclusion.html"><i class="fa fa-check"></i><b>6</b> Conclusion</a></li>
+</ul></nav>
+</div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Creating the <code>substab</code> R package</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-"><div id="subsampling" class="section level1 hasAnchor" number="3">
+<h1>
+<span class="header-section-number">3</span> Subsampling and stability<a href="subsampling.html#subsampling" class="anchor-section" aria-label="Anchor link to header"></a>
+</h1>
+<p>Just like in complementary pairs stability selection, we will be repeatedly applying a base procedure (here <span class="math inline">\(\ell_0\)</span>-regularized regression) to random splits of the data. The difference is that we will be keeping track of subspaces rather than feature indices. In particular, in the paper we define</p>
+<p><span class="math display">\[
+\mathcal{P}_\mathrm{avg} := \frac{1}{B}\sum_{\ell=1}^B\mathcal{P}_{\mathrm{col}({X_{\widehat{S}^{(\ell)}}})},
+\]</span>
+though here we average over <span class="math inline">\(2B\)</span> projection matrices because of the “complementary pairs” subsampling technique.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="subsampling.html#cb15-1" tabindex="-1"></a><span class="co">#' l0 regression </span></span>
+<span id="cb15-2"><a href="subsampling.html#cb15-2" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb15-3"><a href="subsampling.html#cb15-3" tabindex="-1"></a><span class="co">#' This function takes a subsample and returns a matrix </span></span>
+<span id="cb15-4"><a href="subsampling.html#cb15-4" tabindex="-1"></a><span class="co">#' representing the column space of selected features</span></span>
+<span id="cb15-5"><a href="subsampling.html#cb15-5" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb15-6"><a href="subsampling.html#cb15-6" tabindex="-1"></a><span class="co">#' @param X the n/2 by p design matrix</span></span>
+<span id="cb15-7"><a href="subsampling.html#cb15-7" tabindex="-1"></a><span class="co">#' @param y the length n/2 response vector</span></span>
+<span id="cb15-8"><a href="subsampling.html#cb15-8" tabindex="-1"></a><span class="co">#' @param s0 an integer, tuning parameter for l0: the number of selected features</span></span>
+<span id="cb15-9"><a href="subsampling.html#cb15-9" tabindex="-1"></a><span class="co">#' @intercept logical. If FALSE, no intercept term is included in the model</span></span>
+<span id="cb15-10"><a href="subsampling.html#cb15-10" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb15-11"><a href="subsampling.html#cb15-11" tabindex="-1"></a><span class="co">#' @return a list:</span></span>
+<span id="cb15-12"><a href="subsampling.html#cb15-12" tabindex="-1"></a><span class="co">#' \describe{</span></span>
+<span id="cb15-13"><a href="subsampling.html#cb15-13" tabindex="-1"></a><span class="co">#'  \item{coef}{a vector of estimated coefficients}</span></span>
+<span id="cb15-14"><a href="subsampling.html#cb15-14" tabindex="-1"></a><span class="co">#'  \item{U}{n by k matrix, where k = rank(X_S) and S is the selection set. When no features are selected, return NULL}</span></span>
+<span id="cb15-15"><a href="subsampling.html#cb15-15" tabindex="-1"></a><span class="co">#' }</span></span>
+<span id="cb15-16"><a href="subsampling.html#cb15-16" tabindex="-1"></a>l0_reg <span class="ot">=</span> <span class="cf">function</span>(X, y, ind, s0, <span class="at">intercept =</span> <span class="cn">FALSE</span>) {</span>
+<span id="cb15-17"><a href="subsampling.html#cb15-17" tabindex="-1"></a>  l0_model <span class="ot">&lt;-</span> L0Learn<span class="sc">::</span><span class="fu">L0Learn.fit</span>(<span class="at">x =</span> X[ind,], <span class="at">y =</span> y[ind], <span class="at">maxSuppSize =</span> s0, <span class="at">intercept =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb15-18"><a href="subsampling.html#cb15-18" tabindex="-1"></a>  v <span class="ot">&lt;-</span> stats<span class="sc">::</span><span class="fu">coef</span>(l0_model)</span>
+<span id="cb15-19"><a href="subsampling.html#cb15-19" tabindex="-1"></a>  v <span class="ot">=</span> v[,<span class="fu">ncol</span>(v)]</span>
+<span id="cb15-20"><a href="subsampling.html#cb15-20" tabindex="-1"></a>  sel_var <span class="ot">&lt;-</span> <span class="fu">which</span>(<span class="fu">abs</span>(v) <span class="sc">!=</span> <span class="dv">0</span>)</span>
+<span id="cb15-21"><a href="subsampling.html#cb15-21" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(sel_var) <span class="sc">&gt;</span><span class="dv">0</span>) {</span>
+<span id="cb15-22"><a href="subsampling.html#cb15-22" tabindex="-1"></a>    U <span class="ot">=</span> <span class="fu">svd</span>(X[,sel_var])<span class="sc">$</span>u</span>
+<span id="cb15-23"><a href="subsampling.html#cb15-23" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">list</span>(</span>
+<span id="cb15-24"><a href="subsampling.html#cb15-24" tabindex="-1"></a>      <span class="at">coef =</span> v,</span>
+<span id="cb15-25"><a href="subsampling.html#cb15-25" tabindex="-1"></a>      <span class="at">U =</span> U</span>
+<span id="cb15-26"><a href="subsampling.html#cb15-26" tabindex="-1"></a>    ))</span>
+<span id="cb15-27"><a href="subsampling.html#cb15-27" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb15-28"><a href="subsampling.html#cb15-28" tabindex="-1"></a>    <span class="fu">return</span>(<span class="cn">NULL</span>)</span>
+<span id="cb15-29"><a href="subsampling.html#cb15-29" tabindex="-1"></a>  }</span>
+<span id="cb15-30"><a href="subsampling.html#cb15-30" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="subsampling.html#cb16-1" tabindex="-1"></a><span class="co">#' Subsampling using l0 base procedures</span></span>
+<span id="cb16-2"><a href="subsampling.html#cb16-2" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb16-3"><a href="subsampling.html#cb16-3" tabindex="-1"></a><span class="co">#' @param X the n by p design matrix</span></span>
+<span id="cb16-4"><a href="subsampling.html#cb16-4" tabindex="-1"></a><span class="co">#' @param y the length n response vector</span></span>
+<span id="cb16-5"><a href="subsampling.html#cb16-5" tabindex="-1"></a><span class="co">#' @param s0 an integer, tuning parameter for l0: the number of selected features</span></span>
+<span id="cb16-6"><a href="subsampling.html#cb16-6" tabindex="-1"></a><span class="co">#' @param num_bags number of complementary subsample pairs B</span></span>
+<span id="cb16-7"><a href="subsampling.html#cb16-7" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb16-8"><a href="subsampling.html#cb16-8" tabindex="-1"></a><span class="co">#' @return a list:</span></span>
+<span id="cb16-9"><a href="subsampling.html#cb16-9" tabindex="-1"></a><span class="co">#' \describe{</span></span>
+<span id="cb16-10"><a href="subsampling.html#cb16-10" tabindex="-1"></a><span class="co">#' \item{Selset}{a \eqn{2*B} by p matrix, where each row gives the estimated coefficients of each subsample}</span></span>
+<span id="cb16-11"><a href="subsampling.html#cb16-11" tabindex="-1"></a><span class="co">#' \item{Pavg}{an n by n matrix, representing the Pavg matrix}</span></span>
+<span id="cb16-12"><a href="subsampling.html#cb16-12" tabindex="-1"></a><span class="co">#' \item{base_lst}{a list with length \eqn{2*B}, where each element gives the n by n projection matrix \eqn{P_{X_S^l}} from the l-th subsample}</span></span>
+<span id="cb16-13"><a href="subsampling.html#cb16-13" tabindex="-1"></a><span class="co">#' }</span></span>
+<span id="cb16-14"><a href="subsampling.html#cb16-14" tabindex="-1"></a><span class="co">#' @export</span></span>
+<span id="cb16-15"><a href="subsampling.html#cb16-15" tabindex="-1"></a><span id="l0_subsampling">l0_subsampling</span> <span class="ot">&lt;-</span> <span class="cf">function</span>(X, y, s0, <span class="at">num_bags =</span> <span class="dv">100</span>){</span>
+<span id="cb16-16"><a href="subsampling.html#cb16-16" tabindex="-1"></a>  n <span class="ot">=</span> <span class="fu">nrow</span>(X)</span>
+<span id="cb16-17"><a href="subsampling.html#cb16-17" tabindex="-1"></a>  p <span class="ot">=</span> <span class="fu">ncol</span>(X)</span>
+<span id="cb16-18"><a href="subsampling.html#cb16-18" tabindex="-1"></a>  Pavg <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, n, n)</span>
+<span id="cb16-19"><a href="subsampling.html#cb16-19" tabindex="-1"></a>  Selset <span class="ot">=</span> <span class="fu">matrix</span>(<span class="dv">0</span>, <span class="dv">2</span><span class="sc">*</span>num_bags, p)</span>
+<span id="cb16-20"><a href="subsampling.html#cb16-20" tabindex="-1"></a>  base_lst <span class="ot">=</span> <span class="fu">list</span>()</span>
+<span id="cb16-21"><a href="subsampling.html#cb16-21" tabindex="-1"></a>  </span>
+<span id="cb16-22"><a href="subsampling.html#cb16-22" tabindex="-1"></a>  count <span class="ot">=</span> <span class="dv">1</span></span>
+<span id="cb16-23"><a href="subsampling.html#cb16-23" tabindex="-1"></a>  <span class="cf">for</span> (bag_iter <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>num_bags){</span>
+<span id="cb16-24"><a href="subsampling.html#cb16-24" tabindex="-1"></a>    </span>
+<span id="cb16-25"><a href="subsampling.html#cb16-25" tabindex="-1"></a>    <span class="co"># complementary samples</span></span>
+<span id="cb16-26"><a href="subsampling.html#cb16-26" tabindex="-1"></a>    ind <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span>n, n, <span class="at">replace =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-27"><a href="subsampling.html#cb16-27" tabindex="-1"></a>    ind_1 <span class="ot">&lt;-</span> ind[<span class="dv">1</span><span class="sc">:</span>(n<span class="sc">/</span><span class="dv">2</span>)]</span>
+<span id="cb16-28"><a href="subsampling.html#cb16-28" tabindex="-1"></a>    ind_2 <span class="ot">&lt;-</span> ind[<span class="fu">as.numeric</span>(n<span class="sc">/</span><span class="dv">2</span><span class="sc">+</span><span class="dv">1</span>)<span class="sc">:</span>n]</span>
+<span id="cb16-29"><a href="subsampling.html#cb16-29" tabindex="-1"></a>    </span>
+<span id="cb16-30"><a href="subsampling.html#cb16-30" tabindex="-1"></a>    <span class="co"># l0 model on first dataset: updating frequency of variables and subspaces</span></span>
+<span id="cb16-31"><a href="subsampling.html#cb16-31" tabindex="-1"></a>    l0_reg_obj <span class="ot">=</span> <span class="fu">l0_reg</span>(<span class="at">X =</span> X, <span class="at">y =</span> y, <span class="at">ind =</span> ind_1, <span class="at">s0 =</span> s0, <span class="at">intercept =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-32"><a href="subsampling.html#cb16-32" tabindex="-1"></a>    <span class="cf">if</span>(<span class="sc">!</span><span class="fu">is.null</span>(l0_reg_obj<span class="sc">$</span>U)) {</span>
+<span id="cb16-33"><a href="subsampling.html#cb16-33" tabindex="-1"></a>      Selset[count,] <span class="ot">=</span> l0_reg_obj<span class="sc">$</span>coef</span>
+<span id="cb16-34"><a href="subsampling.html#cb16-34" tabindex="-1"></a>      base_lst <span class="ot">=</span> <span class="fu">c</span>(base_lst, <span class="fu">list</span>(l0_reg_obj<span class="sc">$</span>U))</span>
+<span id="cb16-35"><a href="subsampling.html#cb16-35" tabindex="-1"></a>      Pavg <span class="ot">&lt;-</span> Pavg <span class="sc">+</span> l0_reg_obj<span class="sc">$</span>U <span class="sc">%*%</span> <span class="fu">t</span>(l0_reg_obj<span class="sc">$</span>U)</span>
+<span id="cb16-36"><a href="subsampling.html#cb16-36" tabindex="-1"></a>    }</span>
+<span id="cb16-37"><a href="subsampling.html#cb16-37" tabindex="-1"></a>    count <span class="ot">=</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb16-38"><a href="subsampling.html#cb16-38" tabindex="-1"></a>    </span>
+<span id="cb16-39"><a href="subsampling.html#cb16-39" tabindex="-1"></a>    <span class="co"># l0 model on second dataset: updating frequency of variables and subspaces</span></span>
+<span id="cb16-40"><a href="subsampling.html#cb16-40" tabindex="-1"></a>    l0_reg_obj <span class="ot">=</span> <span class="fu">l0_reg</span>(<span class="at">X =</span> X, <span class="at">y =</span> y, <span class="at">ind =</span> ind_2, <span class="at">s0 =</span> s0, <span class="at">intercept =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-41"><a href="subsampling.html#cb16-41" tabindex="-1"></a>    <span class="cf">if</span>(<span class="sc">!</span><span class="fu">is.null</span>(l0_reg_obj<span class="sc">$</span>U)) {</span>
+<span id="cb16-42"><a href="subsampling.html#cb16-42" tabindex="-1"></a>      Selset[count,] <span class="ot">=</span> l0_reg_obj<span class="sc">$</span>coef</span>
+<span id="cb16-43"><a href="subsampling.html#cb16-43" tabindex="-1"></a>      base_lst <span class="ot">=</span> <span class="fu">c</span>(base_lst, <span class="fu">list</span>(l0_reg_obj<span class="sc">$</span>U))</span>
+<span id="cb16-44"><a href="subsampling.html#cb16-44" tabindex="-1"></a>      Pavg <span class="ot">&lt;-</span> Pavg <span class="sc">+</span> l0_reg_obj<span class="sc">$</span>U <span class="sc">%*%</span> <span class="fu">t</span>(l0_reg_obj<span class="sc">$</span>U)</span>
+<span id="cb16-45"><a href="subsampling.html#cb16-45" tabindex="-1"></a>    }</span>
+<span id="cb16-46"><a href="subsampling.html#cb16-46" tabindex="-1"></a>    count <span class="ot">=</span> count <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb16-47"><a href="subsampling.html#cb16-47" tabindex="-1"></a>    </span>
+<span id="cb16-48"><a href="subsampling.html#cb16-48" tabindex="-1"></a>  }</span>
+<span id="cb16-49"><a href="subsampling.html#cb16-49" tabindex="-1"></a>  Pavg <span class="ot">&lt;-</span> Pavg<span class="sc">/</span>(<span class="dv">2</span><span class="sc">*</span>num_bags)</span>
+<span id="cb16-50"><a href="subsampling.html#cb16-50" tabindex="-1"></a>  </span>
+<span id="cb16-51"><a href="subsampling.html#cb16-51" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">list</span>(<span class="at">Selset =</span> Selset,</span>
+<span id="cb16-52"><a href="subsampling.html#cb16-52" tabindex="-1"></a>              <span class="at">Pavg =</span> Pavg,</span>
+<span id="cb16-53"><a href="subsampling.html#cb16-53" tabindex="-1"></a>              <span class="at">base_lst =</span> base_lst))</span>
+<span id="cb16-54"><a href="subsampling.html#cb16-54" tabindex="-1"></a>}</span></code></pre></div>
+<p>In the above function, we used the R package <code>L0Learn</code>. So let’s import it into our package:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="subsampling.html#cb17-1" tabindex="-1"></a>usethis<span class="sc">::</span><span class="fu">use_package</span>(<span class="st">"L0Learn"</span>)</span></code></pre></div>
+<pre><code>## ✔ Adding L0Learn to 'Imports' field in DESCRIPTION.</code></pre>
+<pre><code>## ☐ Refer to functions with `L0Learn::fun()`.</code></pre>
+<p>We can use the output of the above procedure to compute the “subspace stability” of a selected set of features <span class="math inline">\(S\)</span> (from Definition 2 of the paper):</p>
+<p><span class="math display">\[
+\pi(S):= \sigma_{|S|}(\mathcal{P}_{\mathrm{col}(X_S)}\mathcal{P}_\mathrm{avg}\mathcal{P}_{\mathrm{col}(X_S)}).
+\]</span></p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="subsampling.html#cb20-1" tabindex="-1"></a><span class="co">#' The subspace stability of a column space</span></span>
+<span id="cb20-2"><a href="subsampling.html#cb20-2" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb20-3"><a href="subsampling.html#cb20-3" tabindex="-1"></a><span class="co">#' @param base_lst a list with length 2*B, where each element gives the n by n projection matrix \eqn{P_{X_S^l}} from the l-th subsample</span></span>
+<span id="cb20-4"><a href="subsampling.html#cb20-4" tabindex="-1"></a><span class="co">#' @param Z a matrix with linearly independent columns</span></span>
+<span id="cb20-5"><a href="subsampling.html#cb20-5" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb20-6"><a href="subsampling.html#cb20-6" tabindex="-1"></a><span class="co">#' @return the subspace stability value of the column space of Z</span></span>
+<span id="cb20-7"><a href="subsampling.html#cb20-7" tabindex="-1"></a><span id="find_stab">find_stab</span> <span class="ot">&lt;-</span> <span class="cf">function</span>(base_lst, Z) {</span>
+<span id="cb20-8"><a href="subsampling.html#cb20-8" tabindex="-1"></a>  Uc <span class="ot">=</span> <span class="fu">svd</span>(Z)<span class="sc">$</span>u</span>
+<span id="cb20-9"><a href="subsampling.html#cb20-9" tabindex="-1"></a>  Mat <span class="ot">=</span> <span class="fu">matrix</span>(<span class="dv">0</span>, <span class="at">nrow =</span> <span class="fu">nrow</span>(Z), <span class="at">ncol =</span> <span class="fu">nrow</span>(Z))</span>
+<span id="cb20-10"><a href="subsampling.html#cb20-10" tabindex="-1"></a>  <span class="cf">for</span>(i <span class="cf">in</span> <span class="fu">seq_along</span>(base_lst)) {</span>
+<span id="cb20-11"><a href="subsampling.html#cb20-11" tabindex="-1"></a>    Ub <span class="ot">=</span> base_lst[[i]]</span>
+<span id="cb20-12"><a href="subsampling.html#cb20-12" tabindex="-1"></a>    prod <span class="ot">=</span> <span class="fu">t</span>(Uc) <span class="sc">%*%</span> Ub</span>
+<span id="cb20-13"><a href="subsampling.html#cb20-13" tabindex="-1"></a>    Mat <span class="ot">=</span> Mat <span class="sc">+</span> Uc <span class="sc">%*%</span> (prod <span class="sc">%*%</span> <span class="fu">t</span>(prod)) <span class="sc">%*%</span> <span class="fu">t</span>(Uc)</span>
+<span id="cb20-14"><a href="subsampling.html#cb20-14" tabindex="-1"></a>  }</span>
+<span id="cb20-15"><a href="subsampling.html#cb20-15" tabindex="-1"></a>  Mat <span class="ot">=</span> Mat <span class="sc">/</span> <span class="fu">length</span>(base_lst)</span>
+<span id="cb20-16"><a href="subsampling.html#cb20-16" tabindex="-1"></a>  <span class="fu">min</span>( RSpectra<span class="sc">::</span><span class="fu">svds</span>(Mat, <span class="fu">ncol</span>(Z), <span class="dv">0</span>, <span class="dv">0</span>)<span class="sc">$</span>d )</span>
+<span id="cb20-17"><a href="subsampling.html#cb20-17" tabindex="-1"></a>}</span></code></pre></div>
+<p>In the above function, we used the R package <code>RSpectra</code>. So let’s import it into our package:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="subsampling.html#cb21-1" tabindex="-1"></a>usethis<span class="sc">::</span><span class="fu">use_package</span>(<span class="st">"RSpectra"</span>)</span></code></pre></div>
+<pre><code>## ✔ Adding RSpectra to 'Imports' field in DESCRIPTION.</code></pre>
+<pre><code>## ☐ Refer to functions with `RSpectra::fun()`.</code></pre>
+<p>Let’s continue our example now, and call <code><a href="subsampling.html#l0_subsampling">l0_subsampling</a>()</code></p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="subsampling.html#cb24-1" tabindex="-1"></a>ex<span class="sc">$</span>bags <span class="ot">&lt;-</span> <a href="subsampling.html#l0_subsampling">l0_subsampling</a>(ex<span class="sc">$</span>X, ex<span class="sc">$</span>y, <span class="at">s0 =</span> <span class="dv">5</span>)</span></code></pre></div>
+
+</div>
+            </section>
+</div>
+        </div>
+      </div>
+<a href="generating.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="fsss.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script><script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script><script src="libs/gitbook-2.6.7/js/plugin-search.js"></script><script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script><script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script><script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script><script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script><script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script><script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+  "sharing": {
+    "github": false,
+    "facebook": true,
+    "twitter": true,
+    "linkedin": false,
+    "weibo": false,
+    "instapaper": false,
+    "vk": false,
+    "whatsapp": false,
+    "all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+  },
+  "fontsettings": {
+    "theme": "white",
+    "family": "sans",
+    "size": 2
+  },
+  "edit": {
+    "link": null,
+    "text": null
+  },
+  "history": {
+    "link": null,
+    "text": null
+  },
+  "view": {
+    "link": null,
+    "text": null
+  },
+  "download": null,
+  "search": {
+    "engine": "fuse",
+    "options": null
+  },
+  "toc": {
+    "collapse": "subsection"
+  }
+});
+});
+</script><!-- dynamically load mathjax for compatibility with self-contained --><script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    var src = "true";
+    if (src === "" || src === "true") src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/latest.js?config=TeX-MML-AM_CHTML";
+    if (location.protocol !== "file:")
+      if (/^https?:/.test(src))
+        src = src.replace(/^https?:/, '');
+    script.src = src;
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+</body>
+</html>
