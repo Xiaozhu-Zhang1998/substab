@@ -17,5 +17,5 @@ This will create the package directory [substab](substab).  It will also create 
 
 The following command can be used to install the package:
 ```r
-remotes::install_github("jacobbien/substab-project", subdir = "substab")
+remotes::install_github("Xiaozhu-Zhang1998/substab", subdir = "substab")
 ```
